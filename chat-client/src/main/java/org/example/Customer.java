@@ -3,14 +3,22 @@ package org.example;
 import java.io.*;
 import java.net.Socket;
 import java.util.Scanner;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 
 public class Customer {
+    private static int lastId = 0;
+    private final int id;
     private final Socket socket;
     private BufferedReader bufferedReader;
     private BufferedWriter bufferedWriter;
     private final String name;
+    private static final Logger logger = Logger.getLogger(Customer.class.getName());
 
-    public Customer(Socket socket, String name) {
+
+    public Customer(int id, Socket socket, String name) {
+        this.id = assignId();
         this.socket = socket;
         this.name = name;
         try {
@@ -22,10 +30,14 @@ public class Customer {
 
     }
 
+    private int assignId() {
+        return ++lastId;
+    }
+
     /**
      * Отправить сообщение
      */
-    public void sendMessage() {
+    public void sendMessage(int recipientId) {
         try {
             bufferedWriter.write(name);
             bufferedWriter.newLine();
@@ -34,7 +46,7 @@ public class Customer {
             Scanner scanner = new Scanner(System.in);
             while (socket.isConnected()) {
                 String message = scanner.nextLine();
-                bufferedWriter.write(name + ": " + message);
+                bufferedWriter.write(recipientId + ": " + name + ": " + message);
                 bufferedWriter.newLine();
                 bufferedWriter.flush();
             }
@@ -42,6 +54,10 @@ public class Customer {
         } catch (IOException e) {
             closeEverything(socket, bufferedReader, bufferedWriter);
         }
+    }
+
+    public  void sendMessage(){
+        sendMessage(0);// 0 - идентификатор для рассылки всем
     }
 
     /**
@@ -53,12 +69,46 @@ public class Customer {
             while (socket.isConnected()) {
                 try {
                     message = bufferedReader.readLine();
+                    int recipientId = extractRecipientId(message);
+                    if (recipientId == this.id) {
+                        showMessage(message);
+                    }
                     System.out.println(message);
                 } catch (IOException e) {
                     closeEverything(socket, bufferedReader, bufferedWriter);
                 }
             }
         }).start();
+    }
+
+    private void showMessage(String message) {
+        String content = extractMessageContent(message);
+        System.out.println(content);
+    }
+
+    private String extractMessageContent(String message) {
+        String[] parts = message.split(":");
+        return parts[2]; // возвращаем текст сообщения
+    }
+
+    private int extractRecipientId(String message) {
+        int recipientId = -1;
+
+        try {
+            String[] parts = message.split(":");
+            if(parts.length != 3) {
+                throw new IllegalArgumentException("Некорректный формат сообщения");
+            }
+
+            recipientId = Integer.parseInt(parts[0]);
+
+        } catch (NumberFormatException e) {
+            logger.log(Level.SEVERE,"Ошибка распознавания id: " + message, e);
+        } catch (IllegalArgumentException e) {
+            logger.log(Level.SEVERE,"Ошибка чтения сообщения: " + message, e);
+        }
+
+        return recipientId;
     }
 
     /**

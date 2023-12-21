@@ -9,13 +9,15 @@ import java.util.Scanner;
 public class Main {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
+        System.out.println("Введите свой id: ");
+        int id = scanner.nextInt();
         System.out.print("Введите своё имя: ");
         String name = scanner.nextLine();
 
         try {
             InetAddress address = InetAddress.getLocalHost();
             Socket socket = new Socket(address, 1400);
-            Customer client = new Customer(socket, name);
+            Customer client = new Customer(id,socket,name);
 
             InetAddress inetAddress = socket.getInetAddress();
             System.out.println("InetAddress: " + inetAddress);
